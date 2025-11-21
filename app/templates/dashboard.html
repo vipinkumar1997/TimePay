@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dashboard-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold text-dark mb-0">Welcome back, {{ current_user.username }}!</h2>
+        <p class="text-muted mb-0">Here's your summary for {{ now.year }}.</p>
+    </div>
+    <div class="text-end">
+        <form action="{{ url_for('dashboard') }}" method="get" id="monthForm">
+            <select name="month" class="form-select shadow-sm border-0" onchange="document.getElementById('monthForm').submit()" style="width: auto; display: inline-block; font-weight: bold;">
+                {% for m in range(1, 13) %}
+                    <option value="{{ m }}" {% if m == selected_month %}selected{% endif %} {% if m > now.month %}disabled{% endif %}>
+                        {{ now.replace(month=m).strftime('%B') }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- OT Hours Card -->
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card bg-gradient-primary shadow h-100 border-0 cursor-pointer" data-bs-toggle="modal" data-bs-target="#otModal" style="cursor: pointer; transition: transform 0.2s;">
+            <div class="card-body">
+                <h6 class="text-uppercase mb-2 opacity-75" style="font-size: 0.8rem;">Total OT Hours</h6>
+                <h2 class="fw-bold mb-0">{{ total_ot_hours }}</h2>
+                <i class="fas fa-clock stat-icon" style="font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+    <!-- OT Earnings Card -->
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card bg-gradient-success shadow h-100 border-0 cursor-pointer" data-bs-toggle="modal" data-bs-target="#otModal" style="cursor: pointer; transition: transform 0.2s;">
+            <div class="card-body">
+                <h6 class="text-uppercase mb-2 opacity-75" style="font-size: 0.8rem;">OT Earnings</h6>
+                <h2 class="fw-bold mb-0">₹{{ "%.0f"|format(total_ot_money) }}</h2>
+                <i class="fas fa-rupee-sign stat-icon" style="font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+    <!-- Attendance Card -->
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card bg-gradient-info shadow h-100 border-0 cursor-pointer" data-bs-toggle="modal" data-bs-target="#attendanceModal" style="cursor: pointer; transition: transform 0.2s;">
+            <div class="card-body">
+                <h6 class="text-uppercase mb-2 opacity-75" style="font-size: 0.8rem;">Attendance</h6>
+                <h2 class="fw-bold mb-0">{{ attendance_days }} <small class="fs-6">Days</small></h2>
+                <i class="fas fa-calendar-check stat-icon" style="font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+    <!-- Salary Card -->
+    <div class="col-md-3 col-6 mb-3">
+        <div class="card stat-card bg-dark shadow h-100 border-0 text-white cursor-pointer" data-bs-toggle="modal" data-bs-target="#salaryModal" style="cursor: pointer; transition: transform 0.2s;">
+            <div class="card-body">
+                <h6 class="text-uppercase mb-2 opacity-75" style="font-size: 0.8rem;">Total Salary</h6>
+                <h2 class="fw-bold mb-0">₹{{ "%.0f"|format(total_salary) }}</h2>
+                <i class="fas fa-wallet stat-icon" style="font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow border-0 h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-bar me-2"></i>Daily Overtime</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="otChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow border-0 h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="m-0 font-weight-bold text-primary"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body d-grid gap-3">
+                <a href="{{ url_for('add_ot') }}" class="btn btn-primary quick-action-btn">
+                    <i class="fas fa-plus-circle me-2"></i>Add Overtime
+                </a>
+                <a href="{{ url_for('attendance') }}" class="btn btn-outline-primary quick-action-btn">
+                    <i class="fas fa-calendar-check me-2"></i>Mark Attendance
+                </a>
+                <div class="border-top my-2"></div>
+                <h6 class="text-muted text-uppercase small fw-bold mb-2">Reports</h6>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <a href="{{ url_for('export_excel') }}" class="btn btn-success w-100 quick-action-btn btn-sm">
+                            <i class="fas fa-file-excel me-1"></i> Excel
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{{ url_for('export_pdf') }}" class="btn btn-danger w-100 quick-action-btn btn-sm">
+                            <i class="fas fa-file-pdf me-1"></i> PDF
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- OT Modal -->
+<div class="modal fade" id="otModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Overtime Details - {{ now.replace(month=selected_month).strftime('%B') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Hours</th>
+                        <th>Earnings (₹)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ot in overtimes %}
+                    <tr>
+                        <td>{{ ot.date.strftime('%d-%m-%Y') }}</td>
+                        <td>{{ ot.hours }}</td>
+                        <td>{{ "%.2f"|format(ot.hours * current_user.ot_rate) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" class="text-center">No overtime records found.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="fw-bold">
+                        <td>Total</td>
+                        <td>{{ total_ot_hours }}</td>
+                        <td>{{ "%.2f"|format(total_ot_money) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Attendance Modal -->
+<div class="modal fade" id="attendanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Attendance Details - {{ now.replace(month=selected_month).strftime('%B') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>In Time</th>
+                        <th>Out Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for att in attendances %}
+                    <tr>
+                        <td>{{ att.date.strftime('%d-%m-%Y') }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if att.status == 'Present' else 'danger' if att.status == 'Absent' else 'warning' }}">
+                                {{ att.status }}
+                            </span>
+                        </td>
+                        <td>{{ att.in_time.strftime('%H:%M') if att.in_time else '-' }}</td>
+                        <td>{{ att.out_time.strftime('%H:%M') if att.out_time else '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center">No attendance records found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Salary Modal -->
+<div class="modal fade" id="salaryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Salary Breakdown - {{ now.replace(month=selected_month).strftime('%B') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="list-group">
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                Monthly Salary (Base)
+                <span class="fw-bold">₹{{ "%.2f"|format(current_user.monthly_salary) }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                Days Present
+                <span class="badge bg-primary rounded-pill">{{ attendance_days }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                Daily Rate (Approx)
+                <span>₹{{ "%.2f"|format(daily_salary) }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center list-group-item-secondary">
+                Salary Earned (Base)
+                <span class="fw-bold">₹{{ "%.2f"|format(salary_earned) }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center list-group-item-success">
+                Overtime Earnings
+                <span class="fw-bold">+ ₹{{ "%.2f"|format(total_ot_money) }}</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center bg-dark text-white mt-2">
+                Total Payable
+                <span class="fw-bold fs-5">₹{{ "%.0f"|format(total_salary) }}</span>
+            </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="chart-labels" type="application/json">{{ chart_labels | tojson }}</script>
+<script id="chart-data" type="application/json">{{ chart_data | tojson }}</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var chartLabels = JSON.parse(document.getElementById('chart-labels').textContent);
+        var chartData = JSON.parse(document.getElementById('chart-data').textContent);
+
+        var ctx = document.getElementById('otChart').getContext('2d');
+        var otChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Overtime Hours',
+                    data: chartData,
+                    backgroundColor: '#4e73df',
+                    hoverBackgroundColor: '#2e59d9',
+                    borderColor: '#4e73df',
+                    borderRadius: 5,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            borderDash: [2],
+                            drawBorder: false,
+                            color: "rgb(234, 236, 244)",
+                            zeroLineColor: "rgb(234, 236, 244)",
+                        },
+                        ticks: {
+                            padding: 10
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false,
+                            drawBorder: false
+                        },
+                        ticks: {
+                            padding: 10
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

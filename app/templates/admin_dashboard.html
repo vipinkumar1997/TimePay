@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Super Admin Dashboard</h1>
+        <a href="{{ url_for('admin_export_pdf') }}" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm"><i class="fas fa-download fa-sm text-white-50"></i> Generate Report</a>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2 clickable-card" onclick="filterUsers('all')">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Users</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2 clickable-card" onclick="filterUsers('active_today')">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Active Today</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ active_users_today }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-check fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2 clickable-card" onclick="filterUsers('all')">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Records</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_records }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-database fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2 clickable-card" onclick="filterUsers('new_users')">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">New Users (Month)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ new_users_month }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-user-plus fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Row -->
+    <div class="row">
+        <div class="col-xl-12 col-lg-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">User Growth (Last 30 Days)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="growthChart" style="height: 300px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">User Management</h6>
+            <input type="text" id="userSearch" class="form-control form-control-sm w-25" placeholder="Search users...">
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Joined</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr class="user-row" 
+                            data-last-login="{{ user.last_login.strftime('%Y-%m-%d') if user.last_login else '' }}"
+                            data-joined="{{ user.created_at.strftime('%Y-%m') }}">
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <span class="badge bg-{{ 'primary' if user.role == 'super_admin' else 'secondary' }}">
+                                    {{ user.role }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'danger' if user.is_blocked else 'success' }}">
+                                    {{ 'Blocked' if user.is_blocked else 'Active' }}
+                                </span>
+                            </td>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#userModal{{ user.id }}" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if user.role != 'super_admin' %}
+                                    <a href="{{ url_for('impersonate_user', user_id=user.id) }}" class="btn btn-sm btn-info" title="Impersonate">
+                                        <i class="fas fa-user-secret"></i>
+                                    </a>
+                                    <form action="{{ url_for('block_user', user_id=user.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-{{ 'success' if user.is_blocked else 'warning' }}" title="{{ 'Unblock' if user.is_blocked else 'Block' }}">
+                                            <i class="fas fa-{{ 'unlock' if user.is_blocked else 'ban' }}"></i>
+                                        </button>
+                                    </form>
+                                    <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure? This will delete ALL user data permanently.');">
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Details Modals -->
+    {% for user in users %}
+    <div class="modal fade" id="userModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">User Details: {{ user.username }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="list-group">
+                        <li class="list-group-item"><strong>Email:</strong> {{ user.email }}</li>
+                        <li class="list-group-item"><strong>Employee ID:</strong> {{ user.employee_id }}</li>
+                        <li class="list-group-item"><strong>Department:</strong> {{ user.department }}</li>
+                        <li class="list-group-item"><strong>Designation:</strong> {{ user.designation }}</li>
+                        <li class="list-group-item"><strong>Role:</strong> {{ user.role }}</li>
+                        <li class="list-group-item"><strong>Status:</strong> {{ 'Blocked' if user.is_blocked else 'Active' }}</li>
+                        <li class="list-group-item"><strong>Joined:</strong> {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</li>
+                        <li class="list-group-item"><strong>Last Login:</strong> {{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'Never' }}</li>
+                        <li class="list-group-item"><strong>Last IP:</strong> {{ user.last_ip if user.last_ip else 'Unknown' }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script id="chart-labels" type="application/json">{{ chart_labels | tojson }}</script>
+<script id="chart-data" type="application/json">{{ chart_data | tojson }}</script>
+<script>
+    // Search Functionality
+    document.getElementById('userSearch').addEventListener('keyup', function() {
+        var value = this.value.toLowerCase();
+        var rows = document.querySelectorAll('#dataTable tbody tr');
+        rows.forEach(function(row) {
+            var text = row.textContent.toLowerCase();
+            row.style.display = text.indexOf(value) > -1 ? '' : 'none';
+        });
+    });
+
+    // Chart
+    var chartLabels = JSON.parse(document.getElementById('chart-labels').textContent);
+    var chartData = JSON.parse(document.getElementById('chart-data').textContent);
+
+    var ctx = document.getElementById('growthChart').getContext('2d');
+    var myLineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                label: "New Users",
+                lineTension: 0.3,
+                backgroundColor: "rgba(78, 115, 223, 0.05)",
+                borderColor: "rgba(78, 115, 223, 1)",
+                pointRadius: 3,
+                pointBackgroundColor: "rgba(78, 115, 223, 1)",
+                pointBorderColor: "rgba(78, 115, 223, 1)",
+                pointHoverRadius: 3,
+                pointHoverBackgroundColor: "rgba(78, 115, 223, 1)",
+                pointHoverBorderColor: "rgba(78, 115, 223, 1)",
+                pointHitRadius: 10,
+                pointBorderWidth: 2,
+                data: chartData,
+            }],
+        },
+        options: {
+            maintainAspectRatio: false,
+            layout: { padding: { left: 10, right: 25, top: 25, bottom: 0 } },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { maxTicksLimit: 7 } },
+                y: { ticks: { maxTicksLimit: 5, padding: 10 }, grid: { color: "rgb(234, 236, 244)", zeroLineColor: "rgb(234, 236, 244)", drawBorder: false, borderDash: [2], zeroLineBorderDash: [2] } },
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    function filterUsers(criteria) {
+        const rows = document.querySelectorAll('.user-row');
+        const today = new Date().toISOString().split('T')[0];
+        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+
+        rows.forEach(row => {
+            let show = false;
+            if (criteria === 'all') {
+                show = true;
+            } else if (criteria === 'active_today') {
+                const lastLogin = row.getAttribute('data-last-login');
+                if (lastLogin === today) show = true;
+            } else if (criteria === 'new_users') {
+                const joined = row.getAttribute('data-joined');
+                if (joined === currentMonth) show = true;
+            }
+            
+            row.style.display = show ? '' : 'none';
+        });
+    }
+</script>
+{% endblock %}

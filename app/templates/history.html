@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap">
+                <h4 class="m-0 font-weight-bold text-primary"><i class="fas fa-history me-2"></i>History</h4>
+                <form method="GET" action="{{ url_for('history') }}" class="d-flex align-items-center mt-2 mt-md-0">
+                    <select name="month" class="form-select me-2" style="width: auto;">
+                        {% for m in range(1, 13) %}
+                            <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="year" class="form-select me-2" style="width: auto;">
+                        {% for y in range(2023, 2030) %}
+                            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                </form>
+            </div>
+            <div class="card-body">
+                <div class="row mb-4 text-center">
+                    <div class="col-md-3 col-6 mb-2">
+                        <div class="p-3 bg-light rounded">
+                            <small class="text-muted text-uppercase fw-bold">OT Hours</small>
+                            <h4 class="mb-0 fw-bold text-primary">{{ total_ot_hours }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-2">
+                        <div class="p-3 bg-light rounded">
+                            <small class="text-muted text-uppercase fw-bold">OT Amount</small>
+                            <h4 class="mb-0 fw-bold text-success">₹{{ "%.0f"|format(total_ot_money) }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-2">
+                        <div class="p-3 bg-light rounded">
+                            <small class="text-muted text-uppercase fw-bold">Present Days</small>
+                            <h4 class="mb-0 fw-bold text-info">{{ attendance_days }}</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 mb-2">
+                        <div class="p-3 bg-light rounded">
+                            <small class="text-muted text-uppercase fw-bold">Total Salary</small>
+                            <h4 class="mb-0 fw-bold text-dark">₹{{ "%.0f"|format(total_salary) }}</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <ul class="nav nav-tabs mb-3" id="historyTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="ot-tab" data-bs-toggle="tab" data-bs-target="#ot" type="button" role="tab">Overtime</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="attendance-tab" data-bs-toggle="tab" data-bs-target="#attendance" type="button" role="tab">Attendance</button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="historyTabContent">
+                    <div class="tab-pane fade show active" id="ot" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Hours</th>
+                                        <th>Amount</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ot in overtimes %}
+                                    <tr>
+                                        <td>{{ ot.date.strftime('%d-%m-%Y') }}</td>
+                                        <td>{{ ot.hours }}</td>
+                                        <td>₹{{ "%.2f"|format(ot.hours * current_user.ot_rate) }}</td>
+                                        <td>
+                                            <form action="{{ url_for('delete_ot', ot_id=ot.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this record?');">
+                                                <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">No overtime records found for this month.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="attendance" role="tabpanel">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>In Time</th>
+                                        <th>Out Time</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for att in attendances %}
+                                    <tr>
+                                        <td>{{ att.date.strftime('%d-%m-%Y') }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if att.status == 'Present' else 'danger' if att.status == 'Absent' else 'warning' }}">
+                                                {{ att.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ att.in_time.strftime('%H:%M') if att.in_time else '-' }}</td>
+                                        <td>{{ att.out_time.strftime('%H:%M') if att.out_time else '-' }}</td>
+                                        <td>
+                                            <form action="{{ url_for('delete_attendance', att_id=att.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this record?');">
+                                                <button type="submit" class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">No attendance records found for this month.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-white py-3">
+                <h4 class="m-0 font-weight-bold text-primary"><i class="fas fa-plus-circle me-2"></i>Add Overtime</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-4 text-center">
+                        <label class="form-label fw-bold mb-2">Select Date</label>
+                        <div id="inline-calendar"></div>
+                        <!-- Hidden input to store the selected date -->
+                        {{ form.date(class="d-none", id="selected-date") }}
+                        {% if form.date.errors %}
+                            <div class="text-danger mt-2">
+                                {% for error in form.date.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-4">
+                        {{ form.hours.label(class="form-label fw-bold") }}
+                        <div class="input-group">
+                            {{ form.hours(class="form-control form-control-lg", step="0.5", placeholder="e.g. 2.5") }}
+                            <span class="input-group-text">Hours</span>
+                        </div>
+                        {% if form.hours.errors %}
+                            <div class="text-danger mt-1">
+                                {% for error in form.hours.errors %}
+                                    <span>{{ error }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        flatpickr("#inline-calendar", {
+            inline: true,
+            dateFormat: "Y-m-d",
+            defaultDate: "today",
+            maxDate: "today",
+            onChange: function(selectedDates, dateStr, instance) {
+                document.getElementById('selected-date').value = dateStr;
+            }
+        });
+        // Set initial value
+        document.getElementById('selected-date').value = new Date().toISOString().split('T')[0];
+    });
+</script>
+{% endblock %}
