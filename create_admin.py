@@ -1,3 +1,4 @@
+import os
 from app import app, db, bcrypt
 from app.models import User
 
@@ -5,13 +6,16 @@ def create_admin():
     with app.app_context():
         db.create_all() # Ensure tables exist with new schema
         
+        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@timepay.com')
+        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+        
         # Check if admin exists
-        admin = User.query.filter_by(email='admin@timepay.com').first()
+        admin = User.query.filter_by(email=admin_email).first()
         if not admin:
-            hashed_password = bcrypt.generate_password_hash('admin123').decode('utf-8')
+            hashed_password = bcrypt.generate_password_hash(admin_password).decode('utf-8')
             admin = User(
                 username='Admin',
-                email='admin@timepay.com',
+                email=admin_email,
                 password=hashed_password,
                 employee_id='ADMIN001',
                 designation='System Administrator',
@@ -24,8 +28,8 @@ def create_admin():
             db.session.add(admin)
             db.session.commit()
             print("Super Admin user created successfully.")
-            print("Email: admin@timepay.com")
-            print("Password: admin123")
+            print(f"Email: {admin_email}")
+            print(f"Password: {admin_password}")
         else:
             print("Admin user already exists.")
 
