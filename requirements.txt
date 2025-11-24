@@ -9,3 +9,4 @@ openpyxl
 fpdf
 gunicorn
 psycopg2-binary
+requests

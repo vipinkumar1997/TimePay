@@ -23,6 +23,10 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@app.route("/health")
+def health():
+    return "Alive", 200
+
 @app.route("/")
 @app.route("/dashboard")
 @login_required
